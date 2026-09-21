@@ -1,0 +1,268 @@
+## 1. `co_consts`
+
+### Simple Definition
+
+`co_consts` is an attribute of a Python code object that contains the constant values used by that code.
+In simple words: `co_consts` = values that Python already knows as part of the compiled code.
+
+### Example
+
+```python
+def test():
+    x = 100
+    name = "Raj"
+    price = 99.5
+
+print(test.__code__.co_consts)
+
+```
+
+**Output:**
+
+```text
+(None, 100, 'Raj', 99.5)
+
+```
+
+### Point-wise Explanation
+
+* `100`, `"Raj"`, and `99.5` are literal values written in the code.
+* Python can know these values when it compiles the function. Therefore, they can appear in `co_consts`.
+* `x`, `name`, and `price` are **not** constants. They are variable names that refer to objects.
+* `100` → constant/literal
+* `x` → variable name
+
+
+
+**Important:**
+Writing `x = 100` followed by `x = 200` does not mean `x` is a constant. Python doesn't make variables constant just because their first value is known.
+
+> **Easy memory:** `co_consts` stores values written directly into the compiled code, not normal runtime variable values.
+
+---
+
+## 2. String Interning
+
+### Simple Definition
+
+String interning is an optimization where Python can reuse the same string object when identical immutable strings are used.
+
+### Example
+
+```python
+a = "hello"
+b = "hello"
+
+print(a == b)
+print(a is b)
+
+```
+
+**Output:**
+
+```text
+True
+True
+
+```
+
+### Why?
+
+Instead of creating two separate `"hello"` objects, Python may reuse one object:
+
+```text
+a ──┐
+    ├──> "hello"
+b ──┘
+
+```
+
+### Point-wise
+
+* Strings are immutable, so Python can safely reuse a string object.
+* This saves memory and reduces the work of creating duplicate strings.
+* Python does **not** guarantee that every identical string will always be interned.
+
+### `==` vs `is`
+
+* `a == b` means: *Do they have the same value?*
+* `a is b` means: *Are they the exact same object in memory?*
+
+For normal string comparison, always use `a == b`, not `a is b`.
+
+> **Easy memory:** String interning = reuse the same immutable string object when possible.
+
+---
+
+## 3. Integer Caching
+
+### Simple Definition
+
+CPython caches/reuses some commonly used integer objects (typically -5 to 256) instead of creating a new integer object every time.
+
+### Example
+
+```python
+a = 10
+b = 10
+
+print(a == b)
+print(a is b)
+
+```
+
+**Output:**
+
+```text
+True
+True
+
+```
+
+Both names refer to the same cached integer object.
+
+### Point-wise
+
+* Integers are immutable.
+* CPython keeps some integer objects ready for reuse.
+* When the same cached integer is needed, Python reuses the existing object, saving object creation time and memory.
+* The exact caching behavior is an implementation detail, so don't write programs that depend on it.
+
+**Important:**
+Don't use `if x is 10:`. Use `if x == 10:` because `==` compares value, while `is` compares object identity.
+
+> **Easy memory:** Integer caching = CPython reuses some frequently used integer objects.
+
+---
+
+## 4. CPython vs PyPy
+
+First, understand this: **Python** is the programming language. **CPython** and **PyPy** are implementations of Python.
+
+| Feature | CPython | PyPy |
+| --- | --- | --- |
+| **Status** | Most commonly used Python implementation | Alternative Python implementation |
+| **Language** | Mainly written in C | Implemented using RPython |
+| **Execution** | Traditional interpreter execution model | Has a JIT (Just-In-Time) compiler |
+| **Optimization** | `.pyc` caching is used | Runtime/JIT optimization is a major feature |
+| **Compatibility** | Very broad package compatibility | Compatibility can differ for some C-extension packages |
+
+### What does JIT mean?
+
+Suppose a loop runs millions of times. PyPy's JIT identifies this frequently executed code and optimizes it into fast machine code *while the program is running*.
+
+**Important:** Do not assume "PyPy is always faster than CPython." JIT helps immensely with long-running, computation-heavy pure-Python code, but performance always depends on the specific program.
+
+> **Easy memory:** CPython = standard/common implementation. PyPy = alternative implementation with JIT optimization.
+
+---
+
+## 5. Syntax Error vs Runtime Error
+
+| Feature | Syntax Error | Runtime Error |
+| --- | --- | --- |
+| **Problem** | Problem with code structure/grammar | Problem while executing |
+| **When it happens** | Happens during compilation/parsing | Happens during execution |
+| **Execution state** | Normal execution doesn't start | Previous valid code may already have executed |
+| **Example** | Missing `:` (`if x > 10`) | Divide by zero (`10 / 0`) |
+
+> **Easy memory:** Syntax error = Python can't properly understand the code. Runtime error = Python understands the code, but something goes wrong while running it.
+
+---
+
+## 6. Why does a Syntax Error stop the whole file?
+
+Consider this code:
+
+```python
+print("Hello")
+
+x = 10
+
+if x > 5
+    print("Greater") # SyntaxError: missing colon
+
+```
+
+You might think Python would at least print "Hello", but it doesn't.
+
+### Why?
+
+Python needs to successfully parse and compile the *entire* module into a valid code object before normal execution of the module can begin.
+
+**Simplified Flow:**
+
+```text
+Python file
+     ↓
+Parse / compile whole code
+     ↓
+Syntax check
+     ↓
+❌ SyntaxError
+     ↓
+Normal execution doesn't start
+
+```
+
+### Very Important Example
+
+**Syntax Error:**
+
+```python
+print("Hello")
+
+if True
+    print("World")
+
+```
+
+*Output:* `SyntaxError`. "Hello" is not normally printed because the file failed to compile.
+
+**Runtime Error:**
+
+```python
+print("Hello")
+
+x = 10
+y = 0
+print(x / y)
+
+print("World")
+
+```
+
+*Output:* "Hello" prints. Then `ZeroDivisionError` occurs. "World" is never reached.
+*(The code compiled successfully, execution started, but a runtime error occurred halfway through).*
+
+---
+
+## Final Mental Model
+
+Keep these six concepts connected like this:
+
+```text
+ Python source code
+        ↓
+    Compilation
+        ↓
+  ┌───────────────┐
+  │ Syntax check  │ ────── (SyntaxError prevents execution here)
+  └───────────────┘
+        ↓
+    Code Object
+        ↓
+  ┌─────────────────────┐
+  │ bytecode + co_consts│ ────── (Constants/literals stored here)
+  └─────────────────────┘
+        ↓
+  Python execution ────── (RuntimeError can happen here)
+        ↓
+  Runtime values/objects
+        ↓
+  ┌─────────────────────┐
+  │ String interning    │ ────── (Reuse of identical strings)
+  │ Integer caching     │ ────── (Reuse of small integers)
+  └─────────────────────┘
+
+```
