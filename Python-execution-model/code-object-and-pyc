@@ -1,0 +1,209 @@
+## 1. Code Object
+
+### Simple Definition
+
+A **code object** is an internal Python object that contains the compiled information needed to execute a piece of Python code, such as its bytecode, constants, and variable information.
+
+### Example
+
+```python
+def add(a, b):
+    return a + b
+
+print(add.__code__)
+
+```
+
+**Output:**
+
+```text
+<code object add at 0x...>
+
+```
+
+Here, `add.__code__` is the code object of the `add()` function.
+
+### How it Works
+
+```text
+  Python code
+       ↓
+  Compilation
+       ↓
+  Code object
+       ↓
+Python executes it
+
+```
+
+### Important Points
+
+* A code object is created when Python compiles Python code.
+* It contains information about how the code should be executed (bytecode instructions, constants, variable names, etc.).
+* It is an object in memory while Python is running.
+* It **does not** simply store the current values of all variables. The actual runtime values are mainly handled by the execution frame.
+* A `.pyc` file can store a serialized/cached form of compiled code information.
+
+> **Easy way to remember:** Code object = compiled instructions/information that Python uses to execute code.
+
+---
+
+## 2. `.pyc` File
+
+### Simple Definition
+
+A **`.pyc` file** is a cached file containing compiled Python bytecode, created so Python can avoid recompiling the same source code unnecessarily during future imports.
+
+### Example
+
+Suppose `calculator.py` contains:
+
+```python
+def add(a, b):
+    return a + b
+
+```
+
+When another file executes `import calculator`, Python needs compiled bytecode for `calculator.py`. It may create a directory and file like this:
+
+```text
+__pycache__/
+    calculator.cpython-314.pyc
+
+```
+
+### Import Flows
+
+**First Import:**
+
+```text
+calculator.py
+       ↓
+    Compile
+       ↓
+Bytecode / code info
+       ↓
+Save cache → calculator.pyc
+       ↓
+  Create module
+       ↓
+ Execute module
+
+```
+
+**Future Import:**
+If the `.pyc` cache is still valid:
+
+```text
+calculator.py + calculator.pyc
+       ↓
+  Check cache
+       ↓
+     Valid?
+       ↓
+Load cached bytecode
+       ↓
+Avoid recompilation
+       ↓
+Create/load module
+       ↓
+  Execute module
+
+```
+
+*(So `.pyc` mainly saves compilation time.)*
+
+---
+
+## 3. How does Python know `.pyc` is valid?
+
+Python stores metadata in the `.pyc` header that allows it to check whether the cached bytecode corresponds to the source file. If the cache is invalid/stale, Python recompiles the source and updates the cache.
+
+**Conceptually:**
+
+```text
+       calculator.py
+             ↓
+    Has source changed?
+             ↓
+      ┌──────┴──────┐
+      ↓             ↓
+     No            Yes
+      ↓             ↓
+  Use .pyc     Compile again
+
+```
+
+---
+
+## 4. `.pyc` vs `sys.modules`
+
+This distinction is very important because they solve different problems.
+
+| Feature | `.pyc` File | `sys.modules` |
+| --- | --- | --- |
+| **Location** | Disk | Memory |
+| **Purpose** | Avoid compiling `.py` source code again. | Avoid loading and executing the same module again within the same process. |
+| **Workflow** | `.py` → compile → `.pyc` | `import` → check cache → reuse |
+
+### Example
+
+```python
+import calculator
+import calculator
+
+```
+
+* The **first import** loads and initializes the module.
+* The **second import** normally finds `sys.modules["calculator"]` and reuses the already loaded module from memory.
+
+---
+
+## 5. The Complete Picture
+
+Keep this flow in your mind:
+
+```text
+                  calculator.py
+                        ↓
+                   Compilation
+                        ↓
+                   Code Object
+                        ↓
+                 Cached as .pyc
+                        ↓
+                  Future import
+                        ↓
+              Is .pyc still valid?
+                 /            \
+               Yes             No
+                ↓               ↓
+           Load .pyc        Compile again
+                ↓               ↓
+                └───────┬───────┘
+                        ↓
+                  Create module
+                        ↓
+               Execute module code
+                        ↓
+               Store in sys.modules
+
+```
+
+**If the same module is imported again in the same process:**
+
+```text
+                import calculator
+                        ↓
+                Check sys.modules
+                        ↓
+                 Already loaded?
+                        ↓
+              Reuse existing module
+
+```
+
+> **Final Memory Trick:**
+> * **Code object:** compiled code information *in memory*.
+> * **`.pyc`:** cached compiled code *on disk*, mainly used to save recompilation time.
+> * **`sys.modules`:** memory cache of *already loaded modules*, used to avoid importing/executing them again in the same process.
